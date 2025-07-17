@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+import sys
+import apt
+
+
+def extract_multi_dependencies(inst_ver):
+    """
+    Return a list of sorted multi-alternative dependency groups
+    (lists of names with len>1) for Depends, Recommends, Suggests.
+    """
+    deps = inst_ver.get_dependencies("Depends", "Recommends", "Suggests")
+    groups = [[bd.name for bd in dep.or_dependencies] for dep in deps]
+    return [sorted(grp) for grp in groups if len(grp) > 1]
+
+
+def main():
+    cache = apt.Cache()
+    cache.open()
+
+    # Determine which packages to inspect
+    if len(sys.argv) > 1 and cache.get(sys.argv[1]) and cache[sys.argv[1]].is_installed:
+        pkgs = [cache[sys.argv[1]]]
+    else:
+        pkgs = [pkg for pkg in cache if pkg.is_installed]
+
+    for pkg in pkgs:
+        multi = extract_multi_dependencies(pkg.installed)
+        # Skip packages without any multi-alternative deps
+        if not multi:
+            continue
+
+        # Collect only those groups where >=2 alternatives are installed
+        installed_groups = []
+        for grp in multi:
+            installed = [
+                name for name in grp if cache.get(name) and cache[name].is_installed
+            ]
+            if len(installed) >= 2:
+                installed_groups.append(installed)
+
+        # If none of the groups has 2+ installed, skip the package
+        if not installed_groups:
+            continue
+
+        # Print package header and each Installed line
+        print(f"Package: {pkg.name}")
+        for inst in installed_groups:
+            print("  Installed: " + " | ".join(inst))
+        print()
+
+
+if __name__ == "__main__":
+    main()

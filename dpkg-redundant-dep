@@ -9,7 +9,11 @@ def extract_multi_dependencies(inst_ver):
     (lists of names with len>1) for Depends, Recommends, Suggests.
     """
     deps = inst_ver.get_dependencies("Depends", "Recommends", "Suggests")
-    groups = [[bd.name for bd in dep.or_dependencies] for dep in deps]
+    groups = []
+    for dep in deps:
+        names = {bd.name for bd in dep.or_dependencies}  # use a set to dedupe
+        if len(names) > 1:
+            groups.append(sorted(names))
     return [sorted(grp) for grp in groups if len(grp) > 1]
 
 
